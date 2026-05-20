@@ -54,18 +54,8 @@ const CATEGORIES = [
 
 const COMP_TYPES = ["Factura", "Nota de debito", "Refacturación"];
 
-const SAMPLE_INVOICES = [
-  { id: "FA X 0004-00000727", os: "I.N.S.S.J.P.", total: 710230900, saldo: 0, status: "Cancelada", fecha: "2026-02-03", periodo: "2025-12" },
-  { id: "FA X 0088-00000295", os: "O.S.D.E. (I.V.A.) 2-210 / 2-310", total: 357919600, saldo: 0, status: "Cancelada", fecha: "2026-03-30", periodo: "2026-02" },
-  { id: "FA C 0005-00001148", os: "O.S.P.E.(Obra Social de Petroleros)", total: 271761500, saldo: 0, status: "Cancelada", fecha: "2026-02-04", periodo: "2026-01" },
-  { id: "FA C 0005-00004187", os: "O.S.P.y G. CHUBUT", total: 264131600, saldo: 1856495, status: "Pendiente", fecha: "2026-01-09", periodo: "2025-12" },
-  { id: "FA X 0088-00000278", os: "MEDIFE ASOCIACION CIVIL (I.V.A.)", total: 139774100, saldo: 4584090, status: "Pendiente", fecha: "2026-02-02", periodo: "2026-01" },
-  { id: "FA C 0005-00001150", os: "O.S.D.I.P.P.", total: 136648100, saldo: 0, status: "Cancelada", fecha: "2026-02-04", periodo: "2026-01" },
-  { id: "FA X 0004-00000730", os: "I.N.S.S.J.P.", total: 98450000, saldo: 98450000, status: "Pendiente", fecha: "2026-03-15", periodo: "2026-02" },
-  { id: "FA C 0005-00004200", os: "S.E.R.O.S.", total: 45670000, saldo: 45670000, status: "Pendiente", fecha: "2026-03-20", periodo: "2026-02" },
-  { id: "FA X 0088-00000300", os: "SWISS MEDICAL S.A. (I.V.A.)", total: 67890000, saldo: 67890000, status: "Pendiente", fecha: "2026-04-01", periodo: "2026-03" },
-  { id: "FA C 0005-00004210", os: "GALENO Argentina S.A.", total: 34560000, saldo: 34560000, status: "Pendiente", fecha: "2026-04-05", periodo: "2026-03" },
-];
+// Full invoice data imported from Excel (1933 comprobantes)
+import { INVOICE_DATA } from "./invoiceData.js";
 
 // Full obras sociales list with CUIT
 const OBRAS_SOCIALES_FULL = [
@@ -569,7 +559,7 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
   const isLiquidacion = form.categoria === "Liquidaciones a profesionales";
 
   // Merge base + custom invoices
-  const allInvoices = useMemo(() => [...SAMPLE_INVOICES, ...(customInvoices || [])], [customInvoices]);
+  const allInvoices = useMemo(() => [...INVOICE_DATA, ...(customInvoices || [])], [customInvoices]);
 
   // Compute already-imputated amounts to subtract from saldo
   const imputatedMap = useMemo(() => getImputatedByInvoice(movements), [movements]);
@@ -583,12 +573,15 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
     });
   }, [allInvoices, imputatedMap]);
 
-  // Filtered invoices by selected OS razón social
+  // Filtered invoices by CUIT of selected OS
   const filteredInvoices = useMemo(() => {
-    if (!isCobranzaOS) return [];
-    const os = form.razonSocial || "";
+    if (!isCobranzaOS || !form.razonSocial) return [];
+    const selectedCuit = CUIT_MAP[form.razonSocial] || "";
     return invoicesWithLiveSaldo
-      .filter(inv => !os || inv.os === os)
+      .filter(inv => {
+        if (!selectedCuit) return inv.os === form.razonSocial;
+        return inv.cuit === selectedCuit;
+      })
       .filter(inv => inv.liveSaldo > 0);
   }, [isCobranzaOS, form.razonSocial, invoicesWithLiveSaldo]);
 
@@ -607,7 +600,8 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
       alert("Complete al menos: Nro Comprobante, Obra Social y Saldo");
       return;
     }
-    const inv = { ...newInvoice, total: newInvoice.saldo, status: "Pendiente" };
+    const cuit = CUIT_MAP[newInvoice.os] || "";
+    const inv = { ...newInvoice, total: newInvoice.saldo, status: "Pendiente", cuit };
     updateCustomInvoices([...(customInvoices || []), inv]);
     setNewInvoice({ ...emptyInv });
     setShowAddInvoice(false);
@@ -958,9 +952,12 @@ function LiquidacionTab({ movements, updateMovements, settlements, updateSettlem
           {unassigned.map(c => (
             <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12, flexWrap: "wrap", gap: 8 }}>
               <div><strong>{c.razonSocial}</strong> — {c.fecha} — {fmt(parseFloat(c.monto) || 0)}</div>
-              <select onChange={e => { if (e.target.value) assignCobranza(c.id, e.target.value); }} style={{ ...selectStyle, width: 220, padding: "4px 8px", fontSize: 11 }}>
+              <select onChange={e => { if (e.target.value) assignCobranza(c.id, e.target.value); }} style={{ ...selectStyle, width: 280, padding: "4px 8px", fontSize: 11 }}>
                 <option value="">Imputar a factura...</option>
-                {SAMPLE_INVOICES.filter(i => i.status === "Pendiente").map(inv => <option key={inv.id} value={inv.id}>{inv.id} - {inv.os} ({fmt(inv.saldo)})</option>)}
+                {INVOICE_DATA.filter(i => i.status === "Pendiente" && i.saldo > 0).filter(i => {
+                  const cbrCuit = CUIT_MAP[c.razonSocial] || "";
+                  return cbrCuit ? i.cuit === cbrCuit : i.os === c.razonSocial;
+                }).map(inv => <option key={inv.id} value={inv.id}>{inv.id} - {inv.os.slice(0,25)} ({fmt(inv.saldo)})</option>)}
               </select>
             </div>
           ))}
@@ -1178,7 +1175,7 @@ function ReporteCobranzas({ movements }) {
   const [rangeTo, setRangeTo] = useState("2026-05");
   const [viewMode, setViewMode] = useState("periodo");
 
-  const invoices = SAMPLE_INVOICES;
+  const invoices = INVOICE_DATA;
   const totalFacturado = invoices.reduce((s, i) => s + i.total, 0);
   const totalCobrado = invoices.reduce((s, i) => s + (i.total - i.saldo), 0);
   const totalPendiente = invoices.reduce((s, i) => s + i.saldo, 0);
