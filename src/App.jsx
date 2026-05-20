@@ -52,16 +52,6 @@ const CATEGORIES = [
   { cod: 27, name: "Cuota Sociedad de Pediatria", type: "Egreso" },
 ];
 
-const OBRAS_SOCIALES = [
-  "I.N.S.S.J.P.", "O.S.D.E. (I.V.A.) 2-210 / 2-310", "O.S.P.E.(Obra Social de Petroleros)",
-  "O.S.P.y G. CHUBUT", "SWISS MEDICAL S.A. (I.V.A.)", "MEDIFE ASOCIACION CIVIL (I.V.A.)",
-  "O.S.D.I.P.P.", "S.E.R.O.S.", "ASOCIACION MUTUAL SANCOR", "GALENO Argentina S.A.",
-  "A.C.A. SALUD", "SWISS MEDICAL S.A.", "MEDIFE ASOCIACION CIVIL",
-  "PREVENCION SALUD S.A.", "OBRA SOCIAL DE COND.CAMIONEROS", "JERARQUICOS SALUD",
-  "D.A.S.U.(I.V.A.)", "CORTE SUPREMA DE JUSTICIA O. S. DEL PODER JUDICIAL",
-  "SUPERINTENDENCIA DE BIENESTAR POLICIA FEDERAL ARG.", "VISITAR SRL"
-];
-
 const COMP_TYPES = ["Factura", "Nota de debito", "Refacturación"];
 
 const SAMPLE_INVOICES = [
@@ -76,6 +66,9 @@ const SAMPLE_INVOICES = [
   { id: "FA X 0088-00000300", os: "SWISS MEDICAL S.A. (I.V.A.)", total: 67890000, saldo: 67890000, status: "Pendiente", fecha: "2026-04-01", periodo: "2026-03" },
   { id: "FA C 0005-00004210", os: "GALENO Argentina S.A.", total: 34560000, saldo: 34560000, status: "Pendiente", fecha: "2026-04-05", periodo: "2026-03" },
 ];
+
+// Extract unique destinatarios from invoices for dropdown
+const DESTINATARIOS_OS = [...new Set(SAMPLE_INVOICES.map(i => i.os))].sort();
 
 /* ═══════════════════════════════════════════════════════════════
    FORMAT HELPERS
@@ -110,6 +103,22 @@ const labelStyle = { fontSize: 11, fontWeight: 600, color: C.gray, textTransform
 const cardStyle = { background: C.white, borderRadius: 10, border: `1px solid ${C.border}`, padding: 20, marginBottom: 16 };
 
 /* ═══════════════════════════════════════════════════════════════
+   HELPER: compute already-imputated amounts per invoice
+   ═══════════════════════════════════════════════════════════════ */
+function getImputatedByInvoice(movements) {
+  const map = {};
+  movements.forEach(m => {
+    if (m.categoria === "Cobranzas de Obras sociales" && m.imputacion) {
+      const ids = Array.isArray(m.facturaImputar) ? m.facturaImputar : [m.imputacion];
+      ids.forEach(fid => {
+        map[fid] = (map[fid] || 0) + (parseFloat(m.monto) || 0);
+      });
+    }
+  });
+  return map;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN APP
    ═══════════════════════════════════════════════════════════════ */
 export default function App() {
@@ -127,7 +136,6 @@ export default function App() {
   const [filterType, setFilterType] = useState("");
   const [filterCat, setFilterCat] = useState("");
 
-  // ── Load ──
   useEffect(() => {
     const m = storage.get("fin_movements");
     const p = storage.get("fin_pending");
@@ -138,7 +146,6 @@ export default function App() {
     setLoading(false);
   }, []);
 
-  // ── Save ──
   const saveAll = useCallback((mv, pn, st) => {
     storage.set("fin_movements", mv);
     storage.set("fin_pending", pn);
@@ -149,7 +156,6 @@ export default function App() {
   const updatePending = (pn) => { setPendingItems(pn); saveAll(movements, pn, settlements); };
   const updateSettlements = (st) => { setSettlements(st); saveAll(movements, pendingItems, st); };
 
-  // ── Filtered ──
   const filtered = useMemo(() => {
     return movements.filter(m => {
       if (filterFrom && m.fecha < filterFrom) return false;
@@ -171,7 +177,6 @@ export default function App() {
     { id: "reportes", label: "Reportes", icon: "📊" },
   ];
 
-  /* ── Loading screen ── */
   if (loading) return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: C.surface }}>
       <div style={{ textAlign: "center" }}>
@@ -181,11 +186,9 @@ export default function App() {
     </div>
   );
 
-  /* ── Render ── */
   return (
     <div style={{ fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: C.surface, minHeight: "100vh", color: C.grayDark }}>
-
-      {/* ─── Header ─── */}
+      {/* Header */}
       <div style={{ background: `linear-gradient(135deg, ${C.navy} 0%, ${C.blue} 100%)`, padding: "20px 24px 16px", color: C.white }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -204,8 +207,6 @@ export default function App() {
             </button>
           </div>
         </div>
-
-        {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
           {[
             { label: "Total Ingresos", value: totalIngresos, color: "#34D399", icon: "↑" },
@@ -223,7 +224,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* ─── Filters ─── */}
+      {/* Filters */}
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: C.gray, textTransform: "uppercase" }}>Filtros:</span>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -248,7 +249,7 @@ export default function App() {
         )}
       </div>
 
-      {/* ─── Tabs ─── */}
+      {/* Tabs */}
       <div style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "0 24px", display: "flex", gap: 0, overflowX: "auto" }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
@@ -258,7 +259,7 @@ export default function App() {
         ))}
       </div>
 
-      {/* ─── Content ─── */}
+      {/* Content */}
       <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
         {activeTab === "movimientos" && <Movimientos movements={filtered} allMovements={movements} updateMovements={updateMovements} isAdmin={isAdmin} />}
         {activeTab === "ingreso" && <IngresoTab movements={movements} updateMovements={updateMovements} pendingItems={pendingItems} updatePending={updatePending} isAdmin={isAdmin} />}
@@ -266,7 +267,7 @@ export default function App() {
         {activeTab === "reportes" && <ReportesTab movements={movements} />}
       </div>
 
-      {/* ─── Login Modal ─── */}
+      {/* Login Modal */}
       {loginModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
           <div style={{ ...cardStyle, width: 340, padding: 28 }}>
@@ -287,11 +288,13 @@ export default function App() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   MOVIMIENTOS
+   MOVIMIENTOS  (with checkboxes, bulk actions, inline edit)
    ═══════════════════════════════════════════════════════════════ */
 function Movimientos({ movements, allMovements, updateMovements, isAdmin }) {
   const [sortField, setSortField] = useState("fecha");
   const [sortDir, setSortDir] = useState("desc");
+  const [selected, setSelected] = useState(new Set());
+  const [editingMov, setEditingMov] = useState(null); // full object being edited
 
   const sorted = useMemo(() => {
     return [...movements].sort((a, b) => {
@@ -306,7 +309,39 @@ function Movimientos({ movements, allMovements, updateMovements, isAdmin }) {
     else { setSortField(f); setSortDir("asc"); }
   };
 
-  const del = (id) => { if (window.confirm("¿Eliminar este movimiento?")) updateMovements(allMovements.filter(m => m.id !== id)); };
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === sorted.length) setSelected(new Set());
+    else setSelected(new Set(sorted.map(m => m.id)));
+  };
+
+  const deleteSelected = () => {
+    if (selected.size === 0) return;
+    if (!window.confirm(`¿Eliminar ${selected.size} movimiento(s) seleccionado(s)?`)) return;
+    updateMovements(allMovements.filter(m => !selected.has(m.id)));
+    setSelected(new Set());
+  };
+
+  const editSelected = () => {
+    if (selected.size !== 1) { alert("Seleccione exactamente un movimiento para editar"); return; }
+    const id = [...selected][0];
+    const mov = allMovements.find(m => m.id === id);
+    if (mov) setEditingMov({ ...mov });
+  };
+
+  const saveEdit = () => {
+    if (!editingMov) return;
+    updateMovements(allMovements.map(m => m.id === editingMov.id ? editingMov : m));
+    setEditingMov(null);
+    setSelected(new Set());
+  };
 
   const downloadCSV = () => {
     if (sorted.length === 0) { alert("No hay movimientos para descargar"); return; }
@@ -334,48 +369,112 @@ function Movimientos({ movements, allMovements, updateMovements, isAdmin }) {
     { key: "fechaRegistracion", label: "F. Registración", w: 100 },
   ];
 
+  const editField = (k, v) => setEditingMov(prev => ({ ...prev, [k]: v }));
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 16, color: C.navy }}>Movimientos ({movements.length})</h2>
-        <button onClick={downloadCSV} style={{ ...primaryBtn, display: "flex", alignItems: "center", gap: 6, background: C.green }}>📥 Descargar Movimientos</button>
+      {/* Header toolbar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16, color: C.navy }}>Movimientos ({movements.length})</h2>
+          {selected.size > 0 && (
+            <span style={{ fontSize: 12, color: C.blue, fontWeight: 600, background: "#DBEAFE", padding: "3px 10px", borderRadius: 12 }}>
+              {selected.size} seleccionado(s)
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {selected.size > 0 && (
+            <>
+              {selected.size === 1 && (
+                <button onClick={editSelected} style={{ ...baseBtn, background: C.blueAccent, color: C.white, fontSize: 12, padding: "6px 12px" }}>✏️ Editar</button>
+              )}
+              <button onClick={deleteSelected} style={{ ...baseBtn, background: C.red, color: C.white, fontSize: 12, padding: "6px 12px" }}>🗑 Eliminar ({selected.size})</button>
+            </>
+          )}
+          <button onClick={downloadCSV} style={{ ...primaryBtn, display: "flex", alignItems: "center", gap: 6, background: C.green, fontSize: 12, padding: "6px 12px" }}>📥 Descargar</button>
+        </div>
       </div>
+
+      {/* Edit modal */}
+      {editingMov && (
+        <div style={{ ...cardStyle, borderLeft: `4px solid ${C.blue}`, marginBottom: 12 }}>
+          <h4 style={{ margin: "0 0 12px", fontSize: 13, color: C.navy }}>✏️ Editando movimiento</h4>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+            <div><label style={labelStyle}>Fecha</label><input type="date" value={editingMov.fecha || ""} onChange={e => editField("fecha", e.target.value)} style={inputStyle} /></div>
+            <div>
+              <label style={labelStyle}>Tipo</label>
+              <select value={editingMov.tipo || ""} onChange={e => editField("tipo", e.target.value)} style={selectStyle}>
+                <option value="">Seleccione...</option>
+                <option value="Ingreso">Ingreso</option>
+                <option value="Egreso">Egreso</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Categoría</label>
+              <select value={editingMov.categoria || ""} onChange={e => editField("categoria", e.target.value)} style={selectStyle}>
+                <option value="">Seleccione...</option>
+                {CATEGORIES.filter(c => !editingMov.tipo || c.type === editingMov.tipo).map(c => <option key={c.cod} value={c.name}>{c.name}</option>)}
+              </select>
+            </div>
+            <div><label style={labelStyle}>Monto</label><input type="number" value={editingMov.monto || ""} onChange={e => editField("monto", e.target.value)} style={inputStyle} /></div>
+            <div><label style={labelStyle}>Razón Social</label><input value={editingMov.razonSocial || ""} onChange={e => editField("razonSocial", e.target.value)} style={inputStyle} /></div>
+            <div><label style={labelStyle}>CUIT / DNI</label><input value={editingMov.cuit || ""} onChange={e => editField("cuit", e.target.value)} style={inputStyle} /></div>
+            <div><label style={labelStyle}>Ref. Banco</label><input value={editingMov.referencia || ""} onChange={e => editField("referencia", e.target.value)} style={inputStyle} /></div>
+            <div><label style={labelStyle}>F. Registración</label><input type="date" value={editingMov.fechaRegistracion || ""} onChange={e => editField("fechaRegistracion", e.target.value)} style={inputStyle} /></div>
+            <div><label style={labelStyle}>Imputación</label><input value={editingMov.imputacion || ""} onChange={e => editField("imputacion", e.target.value)} style={inputStyle} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+            <button onClick={() => setEditingMov(null)} style={secondaryBtn}>Cancelar</button>
+            <button onClick={saveEdit} style={primaryBtn}>💾 Guardar Cambios</button>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
       <div style={{ ...cardStyle, padding: 0, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
             <tr style={{ background: C.grayBg }}>
+              <th style={{ padding: "10px 8px", borderBottom: `1px solid ${C.border}`, width: 40, textAlign: "center" }}>
+                <input type="checkbox" checked={sorted.length > 0 && selected.size === sorted.length} onChange={toggleAll}
+                  style={{ cursor: "pointer", width: 15, height: 15 }} />
+              </th>
               {cols.map(c => (
                 <th key={c.key} onClick={() => toggleSort(c.key)}
                   style={{ padding: "10px 12px", textAlign: "left", cursor: "pointer", fontWeight: 600, color: C.gray, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", width: c.w }}>
                   {c.label} {sortField === c.key ? (sortDir === "asc" ? "↑" : "↓") : ""}
                 </th>
               ))}
-              {isAdmin && <th style={{ padding: "10px 12px", borderBottom: `1px solid ${C.border}`, width: 80 }}>Acciones</th>}
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr><td colSpan={cols.length + 1} style={{ padding: 40, textAlign: "center", color: C.grayMid }}>No hay movimientos registrados. Use "Ingreso de Datos" para agregar.</td></tr>
-            ) : sorted.map(m => (
-              <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}` }}
-                onMouseOver={e => e.currentTarget.style.background = C.grayBg}
-                onMouseOut={e => e.currentTarget.style.background = ""}>
-                <td style={{ padding: "8px 12px" }}>{m.fecha}</td>
-                <td style={{ padding: "8px 12px" }}>
-                  <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600, background: m.tipo === "Ingreso" ? "#D1FAE5" : "#FEE2E2", color: m.tipo === "Ingreso" ? C.green : C.red }}>{m.tipo}</span>
-                </td>
-                <td style={{ padding: "8px 12px", fontSize: 11 }}>{m.categoria}</td>
-                <td style={{ padding: "8px 12px", fontSize: 11 }}>{m.razonSocial}</td>
-                <td style={{ padding: "8px 12px", fontWeight: 600, color: m.tipo === "Ingreso" ? C.green : C.red }}>{fmt(parseFloat(m.monto) || 0)}</td>
-                <td style={{ padding: "8px 12px", fontSize: 11, color: C.grayMid }}>{m.referencia}</td>
-                <td style={{ padding: "8px 12px", fontSize: 11 }}>{m.fechaRegistracion}</td>
-                {isAdmin && (
-                  <td style={{ padding: "8px 12px" }}>
-                    <button onClick={() => del(m.id)} style={{ ...baseBtn, background: "transparent", color: C.red, padding: "2px 6px", fontSize: 11 }}>🗑</button>
+            ) : sorted.map(m => {
+              const isSelected = selected.has(m.id);
+              return (
+                <tr key={m.id}
+                  style={{ borderBottom: `1px solid ${C.border}`, background: isSelected ? "#EFF6FF" : "", cursor: "pointer" }}
+                  onClick={() => toggleSelect(m.id)}
+                  onMouseOver={e => { if (!isSelected) e.currentTarget.style.background = C.grayBg; }}
+                  onMouseOut={e => { if (!isSelected) e.currentTarget.style.background = ""; }}>
+                  <td style={{ padding: "8px 8px", textAlign: "center" }} onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(m.id)}
+                      style={{ cursor: "pointer", width: 15, height: 15 }} />
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td style={{ padding: "8px 12px" }}>{m.fecha}</td>
+                  <td style={{ padding: "8px 12px" }}>
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600, background: m.tipo === "Ingreso" ? "#D1FAE5" : "#FEE2E2", color: m.tipo === "Ingreso" ? C.green : C.red }}>{m.tipo}</span>
+                  </td>
+                  <td style={{ padding: "8px 12px", fontSize: 11 }}>{m.categoria}</td>
+                  <td style={{ padding: "8px 12px", fontSize: 11 }}>{m.razonSocial}</td>
+                  <td style={{ padding: "8px 12px", fontWeight: 600, color: m.tipo === "Ingreso" ? C.green : C.red }}>{fmt(parseFloat(m.monto) || 0)}</td>
+                  <td style={{ padding: "8px 12px", fontSize: 11, color: C.grayMid }}>{m.referencia}</td>
+                  <td style={{ padding: "8px 12px", fontSize: 11 }}>{m.fechaRegistracion}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -384,7 +483,7 @@ function Movimientos({ movements, allMovements, updateMovements, isAdmin }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INGRESO DE DATOS
+   INGRESO DE DATOS (with saldo tracking + OS dropdown)
    ═══════════════════════════════════════════════════════════════ */
 function IngresoTab({ movements, updateMovements, pendingItems, updatePending, isAdmin }) {
   const [subTab, setSubTab] = useState("manual");
@@ -398,11 +497,26 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
   const isProveedor = form.categoria === "Proveedores";
   const isLiquidacion = form.categoria === "Liquidaciones a profesionales";
 
+  // Compute already-imputated amounts to subtract from saldo
+  const imputatedMap = useMemo(() => getImputatedByInvoice(movements), [movements]);
+
+  // Invoices with real-time saldo after imputations
+  const invoicesWithLiveSaldo = useMemo(() => {
+    return SAMPLE_INVOICES.map(inv => {
+      const alreadyImputated = imputatedMap[inv.id] || 0;
+      const liveSaldo = Math.max(inv.saldo - alreadyImputated, 0);
+      return { ...inv, liveSaldo, alreadyImputated };
+    });
+  }, [imputatedMap]);
+
+  // Filtered invoices by selected OS razón social
   const filteredInvoices = useMemo(() => {
     if (!isCobranzaOS) return [];
     const os = form.razonSocial || "";
-    return SAMPLE_INVOICES.filter(inv => !os || inv.os.toLowerCase().includes(os.toLowerCase()));
-  }, [isCobranzaOS, form.razonSocial]);
+    return invoicesWithLiveSaldo
+      .filter(inv => !os || inv.os === os)
+      .filter(inv => inv.liveSaldo > 0); // only show invoices with pending saldo
+  }, [isCobranzaOS, form.razonSocial, invoicesWithLiveSaldo]);
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -419,7 +533,11 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
         const newMvs = form.facturaImputar.map(fid => ({ ...form, id: uid(), imputacion: fid }));
         updateMovements([...movements, ...newMvs]);
       } else {
-        updateMovements([...movements, { ...form, id: uid() }]);
+        const newMov = { ...form, id: uid() };
+        if (isCobranzaOS && form.facturaImputar.length === 1) {
+          newMov.imputacion = form.facturaImputar[0];
+        }
+        updateMovements([...movements, newMov]);
       }
     }
     setForm({ ...emptyForm });
@@ -470,7 +588,7 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
             <div><label style={labelStyle}>Fecha del movimiento *</label><input type="date" value={form.fecha} onChange={e => setField("fecha", e.target.value)} style={inputStyle} /></div>
             <div>
               <label style={labelStyle}>Tipo de movimiento *</label>
-              <select value={form.tipo} onChange={e => { setField("tipo", e.target.value); setField("categoria", ""); }} style={selectStyle}>
+              <select value={form.tipo} onChange={e => { setField("tipo", e.target.value); setField("categoria", ""); setField("razonSocial", ""); }} style={selectStyle}>
                 <option value="">Seleccione...</option>
                 <option value="Ingreso">Ingreso</option>
                 <option value="Egreso">Egreso</option>
@@ -478,13 +596,26 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
             </div>
             <div>
               <label style={labelStyle}>Categoría *</label>
-              <select value={form.categoria} onChange={e => setField("categoria", e.target.value)} style={selectStyle}>
+              <select value={form.categoria} onChange={e => { setField("categoria", e.target.value); setField("razonSocial", ""); setField("facturaImputar", []); }} style={selectStyle}>
                 <option value="">Seleccione...</option>
                 {CATEGORIES.filter(c => !form.tipo || c.type === form.tipo).map(c => <option key={c.cod} value={c.name}>{c.name}</option>)}
               </select>
             </div>
             <div><label style={labelStyle}>Monto *</label><input type="number" value={form.monto || ""} onChange={e => setField("monto", e.target.value)} style={inputStyle} placeholder="0.00" /></div>
-            <div><label style={labelStyle}>Razón Social</label><input value={form.razonSocial} onChange={e => setField("razonSocial", e.target.value)} style={inputStyle} /></div>
+
+            {/* Razón Social: dropdown for Cobranzas OS, free text for others */}
+            {isCobranzaOS ? (
+              <div>
+                <label style={labelStyle}>Razón Social (Destinatario) *</label>
+                <select value={form.razonSocial} onChange={e => { setField("razonSocial", e.target.value); setField("facturaImputar", []); }} style={selectStyle}>
+                  <option value="">Seleccione obra social...</option>
+                  {DESTINATARIOS_OS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div><label style={labelStyle}>Razón Social</label><input value={form.razonSocial} onChange={e => setField("razonSocial", e.target.value)} style={inputStyle} /></div>
+            )}
+
             <div><label style={labelStyle}>CUIT / DNI</label><input value={form.cuit} onChange={e => setField("cuit", e.target.value)} style={inputStyle} placeholder="XX-XXXXXXXX-X" /></div>
             <div><label style={labelStyle}>Referencia del Banco</label><input value={form.referencia} onChange={e => setField("referencia", e.target.value)} style={inputStyle} /></div>
             <div><label style={labelStyle}>Fecha de Registración</label><input type="date" value={form.fechaRegistracion} onChange={e => setField("fechaRegistracion", e.target.value)} style={inputStyle} /></div>
@@ -499,21 +630,39 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
                   </select>
                 </div>
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <label style={labelStyle}>Imputar a Factura(s)</label>
-                  <div style={{ maxHeight: 140, overflow: "auto", border: `1px solid ${C.grayLight}`, borderRadius: 6, padding: 8 }}>
-                    {filteredInvoices.length === 0 ? <p style={{ fontSize: 11, color: C.grayMid }}>Ingrese Razón Social para filtrar facturas</p> :
-                      filteredInvoices.map(inv => (
-                        <label key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 11, cursor: "pointer" }}>
-                          <input type="checkbox" checked={(form.facturaImputar || []).includes(inv.id)} onChange={e => {
-                            const arr = form.facturaImputar || [];
-                            setField("facturaImputar", e.target.checked ? [...arr, inv.id] : arr.filter(x => x !== inv.id));
-                          }} />
-                          <span style={{ fontWeight: 600 }}>{inv.id}</span>
-                          <span style={{ color: C.gray }}>{inv.os}</span>
-                          <span style={{ color: inv.status === "Pendiente" ? C.amber : C.green, fontWeight: 600 }}>{fmt(inv.saldo)}</span>
-                          <span style={{ fontSize: 9, padding: "1px 6px", background: C.grayBg, borderRadius: 4, color: C.grayMid }}>{inv.status}</span>
-                        </label>
-                      ))}
+                  <label style={labelStyle}>Imputar a Factura(s) — Saldo pendiente actualizado</label>
+                  <div style={{ maxHeight: 180, overflow: "auto", border: `1px solid ${C.grayLight}`, borderRadius: 6, padding: 8 }}>
+                    {!form.razonSocial ? (
+                      <p style={{ fontSize: 11, color: C.grayMid, padding: 8 }}>Seleccione una obra social para ver sus facturas pendientes</p>
+                    ) : filteredInvoices.length === 0 ? (
+                      <p style={{ fontSize: 11, color: C.green, padding: 8 }}>✅ No hay facturas pendientes de cobro para esta obra social</p>
+                    ) : (
+                      <>
+                        <div style={{ display: "grid", gridTemplateColumns: "30px 1fr 1fr 100px 100px 80px", gap: 4, padding: "4px 0", borderBottom: `1px solid ${C.border}`, marginBottom: 4 }}>
+                          <span></span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: C.gray, textTransform: "uppercase" }}>Comprobante</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: C.gray, textTransform: "uppercase" }}>Período</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: C.gray, textTransform: "uppercase" }}>Saldo Original</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: C.gray, textTransform: "uppercase" }}>Ya Imputado</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: C.gray, textTransform: "uppercase" }}>Pendiente</span>
+                        </div>
+                        {filteredInvoices.map(inv => (
+                          <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "30px 1fr 1fr 100px 100px 80px", gap: 4, padding: "5px 0", borderBottom: `1px solid ${C.grayBg}`, alignItems: "center" }}>
+                            <input type="checkbox" checked={(form.facturaImputar || []).includes(inv.id)}
+                              onChange={e => {
+                                const arr = form.facturaImputar || [];
+                                setField("facturaImputar", e.target.checked ? [...arr, inv.id] : arr.filter(x => x !== inv.id));
+                              }}
+                              style={{ cursor: "pointer" }} />
+                            <span style={{ fontSize: 11, fontWeight: 600 }}>{inv.id}</span>
+                            <span style={{ fontSize: 11, color: C.gray }}>{inv.periodo}</span>
+                            <span style={{ fontSize: 11, color: C.grayMid }}>{fmt(inv.saldo)}</span>
+                            <span style={{ fontSize: 11, color: inv.alreadyImputated > 0 ? C.blue : C.grayMid }}>{fmt(inv.alreadyImputated)}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: inv.liveSaldo > 0 ? C.amber : C.green }}>{fmt(inv.liveSaldo)}</span>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 </div>
               </>
@@ -716,14 +865,14 @@ function LiquidacionTab({ movements, updateMovements, settlements, updateSettlem
               <label style={labelStyle}>Obra Social</label>
               <select value={newSet.obraSocial} onChange={e => setNewSet(s => ({ ...s, obraSocial: e.target.value }))} style={selectStyle}>
                 <option value="">Seleccione...</option>
-                {OBRAS_SOCIALES.map(os => <option key={os} value={os}>{os}</option>)}
+                {DESTINATARIOS_OS.map(os => <option key={os} value={os}>{os}</option>)}
               </select>
             </div>
             <div>
               <label style={labelStyle}>Factura</label>
               <select value={newSet.facturaId} onChange={e => setNewSet(s => ({ ...s, facturaId: e.target.value }))} style={selectStyle}>
                 <option value="">Seleccione...</option>
-                {SAMPLE_INVOICES.filter(i => !newSet.obraSocial || i.os.includes(newSet.obraSocial.split(" ")[0])).filter(i => i.status === "Pendiente").map(inv => <option key={inv.id} value={inv.id}>{inv.id} ({fmt(inv.saldo)})</option>)}
+                {SAMPLE_INVOICES.filter(i => !newSet.obraSocial || i.os === newSet.obraSocial).filter(i => i.status === "Pendiente").map(inv => <option key={inv.id} value={inv.id}>{inv.id} ({fmt(inv.saldo)})</option>)}
               </select>
             </div>
             <div><label style={labelStyle}>Orden de Pago</label><input value={newSet.ordenPago} onChange={e => setNewSet(s => ({ ...s, ordenPago: e.target.value }))} style={inputStyle} /></div>
@@ -809,7 +958,6 @@ function ReportesTab({ movements }) {
   );
 }
 
-/* ─── Reporte Ingresos ─── */
 function ReporteIngresos({ movements }) {
   const ingresos = movements.filter(m => m.tipo === "Ingreso");
   const byCategory = {};
@@ -858,7 +1006,6 @@ function ReporteIngresos({ movements }) {
   );
 }
 
-/* ─── Reporte Egresos ─── */
 function ReporteEgresos({ movements }) {
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
@@ -943,7 +1090,6 @@ function ReporteEgresos({ movements }) {
   );
 }
 
-/* ─── Reporte Cobranzas ─── */
 function ReporteCobranzas({ movements }) {
   const [periodo, setPeriodo] = useState("2026-03");
   const [rangeFrom, setRangeFrom] = useState("2026-01");
