@@ -67,8 +67,71 @@ const SAMPLE_INVOICES = [
   { id: "FA C 0005-00004210", os: "GALENO Argentina S.A.", total: 34560000, saldo: 34560000, status: "Pendiente", fecha: "2026-04-05", periodo: "2026-03" },
 ];
 
-// Extract unique destinatarios from invoices for dropdown
-const DESTINATARIOS_OS = [...new Set(SAMPLE_INVOICES.map(i => i.os))].sort();
+// Full obras sociales list with CUIT
+const OBRAS_SOCIALES_FULL = [
+  { rs: "A.C.A. SALUD", cuit: "30604958640" },
+  { rs: "A.D.O.S.", cuit: "30561996136" },
+  { rs: "A.P.S.O.T.", cuit: "30564304065" },
+  { rs: "ASOCIACION MUTUAL DE PROTECCION FAMILIAR", cuit: "30678562846" },
+  { rs: "ASOCIACION MUTUAL SANCOR", cuit: "30590354798" },
+  { rs: "ASOCIACION MUTUAL SANCOR - VOLUNTARIO", cuit: "30590354798" },
+  { rs: "CLINICA DEL VALLE SALUD S.R.L.", cuit: "33710210549" },
+  { rs: "CONFERENCIA EPISCOPAL ARGENTINA", cuit: "30517312904" },
+  { rs: "CORTE SUPREMA DE JUSTICIA O. S. DEL PODER JUDICIAL", cuit: "30636196858" },
+  { rs: "D.A.S.U.(I.V.A.)", cuit: "30641871547" },
+  { rs: "D.A.S.U.(U.N.P.S.J.B.)", cuit: "30641871547" },
+  { rs: "EN EL HOGAR", cuit: "30713148004" },
+  { rs: "GALENO Argentina S.A. AZUL/BLANCO/ORO/PLATA", cuit: "30522428163" },
+  { rs: "GALENO ART. S.A.", cuit: "30685228501" },
+  { rs: "GERDANNA S.A.", cuit: "30697606390" },
+  { rs: "GRIAL Salud SA", cuit: "30714348384" },
+  { rs: "GRUPO ROISA", cuit: "30661931066" },
+  { rs: "HEMISFERIO SALUD S.A.", cuit: "30714251488" },
+  { rs: "I.N.S.S.J.P.", cuit: "30522763922" },
+  { rs: "I.N.S.S.J.P. Ambulatorio", cuit: "30522763922" },
+  { rs: "I.N.S.S.J.P. Internacion", cuit: "30522763922" },
+  { rs: "I.O.S.F.A.", cuit: "30714292141" },
+  { rs: "ITER MEDICINA S.A.", cuit: "30704734871" },
+  { rs: "JERARQUICOS SALUD", cuit: "33710185609" },
+  { rs: "MEDICUS S.A.", cuit: "30546771314" },
+  { rs: "MEDIFE ASOCIACION CIVIL", cuit: "30682737650" },
+  { rs: "MEDIFE ASOCIACION CIVIL (I.V.A.)", cuit: "30682737650" },
+  { rs: "NATIVUS", cuit: "30710186533" },
+  { rs: "O.S. SERVICIOS SOCIALES BANCARIOS (OSSSB)", cuit: "30691561468" },
+  { rs: "O.S.COND. CAMIONEROS (SANTA CRUZ)", cuit: "30661507698" },
+  { rs: "O.S.D.E.", cuit: "30546741253" },
+  { rs: "O.S.D.E. (I.V.A.) 2-210 / 2-310", cuit: "30546741253" },
+  { rs: "O.S.D.I.P.P.", cuit: "30547416011" },
+  { rs: "O.S.D.O.P. (O.S.DOCENTES PARTICULARES)", cuit: "30585412453" },
+  { rs: "O.S.DEL PERSONAL DE TELEVISION", cuit: "30516748385" },
+  { rs: "O.S.F.A.T.L.Y.F.", cuit: "30663221244" },
+  { rs: "O.S.J.e R.A.", cuit: "30696351771" },
+  { rs: "O.S.P.E.(Obra Social de Petroleros)", cuit: "30661876715" },
+  { rs: "O.S.P.E.D.Y.C.", cuit: "30688339541" },
+  { rs: "O.S.P.I.A.", cuit: "30643997734" },
+  { rs: "O.S.P.I.L. (O.S.del Personal de la Ind. Lechera)", cuit: "30584194789" },
+  { rs: "O.S.P.y G. CHUBUT", cuit: "30715497995" },
+  { rs: "O.S.SEG.", cuit: "30500053522" },
+  { rs: "O.S.T.P.C.P.H.y A.R.A. (PASTELEROS)", cuit: "30679065382" },
+  { rs: "O.S.V.V.R.A.", cuit: "30693494385" },
+  { rs: "OBRA SOCIAL DE COND.CAMIONEROS", cuit: "30661507698" },
+  { rs: "OBRA SOCIAL DE LUZ Y FUERZA DE LA PATAGONIA", cuit: "30710350333" },
+  { rs: "OSAPM DE LA R.A.", cuit: "30623134659" },
+  { rs: "OSFATUN", cuit: "30683336765" },
+  { rs: "PREVENCION SALUD S.A.", cuit: "30713045000" },
+  { rs: "S.E.R.O.S.", cuit: "30999222907" },
+  { rs: "SCIS S.A. OSPESCA", cuit: "30708428082" },
+  { rs: "SCIS S.A. OSTRAC - AATRAC", cuit: "30708428082" },
+  { rs: "SUPERINTENDENCIA DE BIENESTAR POLICIA FEDERAL ARG.", cuit: "30546662671" },
+  { rs: "SWISS MEDICAL S.A.", cuit: "30654855168" },
+  { rs: "SWISS MEDICAL S.A. (I.V.A.)", cuit: "30654855168" },
+  { rs: "UNO SALUD S.A.", cuit: "30711602425" },
+  { rs: "VISITAR - OSDEPYM", cuit: "33657129629" },
+  { rs: "VISITAR SRL", cuit: "33657129629" },
+  { rs: "OTRO", cuit: "" },
+];
+const DESTINATARIOS_OS = OBRAS_SOCIALES_FULL.map(o => o.rs);
+const CUIT_MAP = Object.fromEntries(OBRAS_SOCIALES_FULL.map(o => [o.rs, o.cuit]));
 
 /* ═══════════════════════════════════════════════════════════════
    FORMAT HELPERS
@@ -126,6 +189,7 @@ export default function App() {
   const [movements, setMovements] = useState([]);
   const [pendingItems, setPendingItems] = useState([]);
   const [settlements, setSettlements] = useState([]);
+  const [customInvoices, setCustomInvoices] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loginModal, setLoginModal] = useState(false);
   const [loginPass, setLoginPass] = useState("");
@@ -140,21 +204,25 @@ export default function App() {
     const m = storage.get("fin_movements");
     const p = storage.get("fin_pending");
     const s = storage.get("fin_settlements");
+    const ci = storage.get("fin_custom_invoices");
     if (m) setMovements(m);
     if (p) setPendingItems(p);
     if (s) setSettlements(s);
+    if (ci) setCustomInvoices(ci);
     setLoading(false);
   }, []);
 
-  const saveAll = useCallback((mv, pn, st) => {
+  const saveAll = useCallback((mv, pn, st, ci) => {
     storage.set("fin_movements", mv);
     storage.set("fin_pending", pn);
     storage.set("fin_settlements", st);
+    storage.set("fin_custom_invoices", ci);
   }, []);
 
-  const updateMovements = (mv) => { setMovements(mv); saveAll(mv, pendingItems, settlements); };
-  const updatePending = (pn) => { setPendingItems(pn); saveAll(movements, pn, settlements); };
-  const updateSettlements = (st) => { setSettlements(st); saveAll(movements, pendingItems, st); };
+  const updateMovements = (mv) => { setMovements(mv); saveAll(mv, pendingItems, settlements, customInvoices); };
+  const updatePending = (pn) => { setPendingItems(pn); saveAll(movements, pn, settlements, customInvoices); };
+  const updateSettlements = (st) => { setSettlements(st); saveAll(movements, pendingItems, st, customInvoices); };
+  const updateCustomInvoices = (ci) => { setCustomInvoices(ci); saveAll(movements, pendingItems, settlements, ci); };
 
   const filtered = useMemo(() => {
     return movements.filter(m => {
@@ -262,7 +330,7 @@ export default function App() {
       {/* Content */}
       <div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
         {activeTab === "movimientos" && <Movimientos movements={filtered} allMovements={movements} updateMovements={updateMovements} isAdmin={isAdmin} />}
-        {activeTab === "ingreso" && <IngresoTab movements={movements} updateMovements={updateMovements} pendingItems={pendingItems} updatePending={updatePending} isAdmin={isAdmin} />}
+        {activeTab === "ingreso" && <IngresoTab movements={movements} updateMovements={updateMovements} pendingItems={pendingItems} updatePending={updatePending} isAdmin={isAdmin} customInvoices={customInvoices} updateCustomInvoices={updateCustomInvoices} />}
         {activeTab === "liquidacion" && <LiquidacionTab movements={movements} updateMovements={updateMovements} settlements={settlements} updateSettlements={updateSettlements} isAdmin={isAdmin} />}
         {activeTab === "reportes" && <ReportesTab movements={movements} />}
       </div>
@@ -485,29 +553,35 @@ function Movimientos({ movements, allMovements, updateMovements, isAdmin }) {
 /* ═══════════════════════════════════════════════════════════════
    INGRESO DE DATOS (with saldo tracking + OS dropdown)
    ═══════════════════════════════════════════════════════════════ */
-function IngresoTab({ movements, updateMovements, pendingItems, updatePending, isAdmin }) {
+function IngresoTab({ movements, updateMovements, pendingItems, updatePending, isAdmin, customInvoices, updateCustomInvoices }) {
   const [subTab, setSubTab] = useState("manual");
   const emptyForm = { fecha: "", tipo: "", categoria: "", razonSocial: "", cuit: "", referencia: "", fechaRegistracion: "", imputacion: "", fechaLiquidacion: "", tipoComprobante: "", facturaImputar: [], tipoGasto: "", proveedorHabitual: false, monto: "" };
   const [form, setForm] = useState({ ...emptyForm });
   const [editingId, setEditingId] = useState(null);
   const [editingPendingId, setEditingPendingId] = useState(null);
   const [pendingForm, setPendingForm] = useState(null);
+  const [showAddInvoice, setShowAddInvoice] = useState(false);
+  const emptyInv = { id: "", os: "", total: 0, saldo: 0, status: "Pendiente", fecha: "", periodo: "" };
+  const [newInvoice, setNewInvoice] = useState({ ...emptyInv });
 
   const isCobranzaOS = form.categoria === "Cobranzas de Obras sociales";
   const isProveedor = form.categoria === "Proveedores";
   const isLiquidacion = form.categoria === "Liquidaciones a profesionales";
+
+  // Merge base + custom invoices
+  const allInvoices = useMemo(() => [...SAMPLE_INVOICES, ...(customInvoices || [])], [customInvoices]);
 
   // Compute already-imputated amounts to subtract from saldo
   const imputatedMap = useMemo(() => getImputatedByInvoice(movements), [movements]);
 
   // Invoices with real-time saldo after imputations
   const invoicesWithLiveSaldo = useMemo(() => {
-    return SAMPLE_INVOICES.map(inv => {
+    return allInvoices.map(inv => {
       const alreadyImputated = imputatedMap[inv.id] || 0;
       const liveSaldo = Math.max(inv.saldo - alreadyImputated, 0);
       return { ...inv, liveSaldo, alreadyImputated };
     });
-  }, [imputatedMap]);
+  }, [allInvoices, imputatedMap]);
 
   // Filtered invoices by selected OS razón social
   const filteredInvoices = useMemo(() => {
@@ -515,10 +589,29 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
     const os = form.razonSocial || "";
     return invoicesWithLiveSaldo
       .filter(inv => !os || inv.os === os)
-      .filter(inv => inv.liveSaldo > 0); // only show invoices with pending saldo
+      .filter(inv => inv.liveSaldo > 0);
   }, [isCobranzaOS, form.razonSocial, invoicesWithLiveSaldo]);
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Auto-fill CUIT when selecting obra social
+  const handleSelectOS = (os) => {
+    setField("razonSocial", os);
+    setField("facturaImputar", []);
+    const cuit = CUIT_MAP[os] || "";
+    if (cuit) setField("cuit", cuit);
+  };
+
+  const addManualInvoice = () => {
+    if (!newInvoice.id || !newInvoice.os || !newInvoice.saldo) {
+      alert("Complete al menos: Nro Comprobante, Obra Social y Saldo");
+      return;
+    }
+    const inv = { ...newInvoice, total: newInvoice.saldo, status: "Pendiente" };
+    updateCustomInvoices([...(customInvoices || []), inv]);
+    setNewInvoice({ ...emptyInv });
+    setShowAddInvoice(false);
+  };
 
   const handleSave = () => {
     if (!form.fecha || !form.tipo || !form.categoria || !form.monto) {
@@ -607,7 +700,7 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
             {isCobranzaOS ? (
               <div>
                 <label style={labelStyle}>Razón Social (Destinatario) *</label>
-                <select value={form.razonSocial} onChange={e => { setField("razonSocial", e.target.value); setField("facturaImputar", []); }} style={selectStyle}>
+                <select value={form.razonSocial} onChange={e => handleSelectOS(e.target.value)} style={selectStyle}>
                   <option value="">Seleccione obra social...</option>
                   {DESTINATARIOS_OS.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
@@ -634,8 +727,8 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
                   <div style={{ maxHeight: 180, overflow: "auto", border: `1px solid ${C.grayLight}`, borderRadius: 6, padding: 8 }}>
                     {!form.razonSocial ? (
                       <p style={{ fontSize: 11, color: C.grayMid, padding: 8 }}>Seleccione una obra social para ver sus facturas pendientes</p>
-                    ) : filteredInvoices.length === 0 ? (
-                      <p style={{ fontSize: 11, color: C.green, padding: 8 }}>✅ No hay facturas pendientes de cobro para esta obra social</p>
+                    ) : filteredInvoices.length === 0 && !showAddInvoice ? (
+                      <p style={{ fontSize: 11, color: C.grayMid, padding: 8 }}>No hay facturas pendientes para esta obra social</p>
                     ) : (
                       <>
                         <div style={{ display: "grid", gridTemplateColumns: "30px 1fr 1fr 100px 100px 80px", gap: 4, padding: "4px 0", borderBottom: `1px solid ${C.border}`, marginBottom: 4 }}>
@@ -664,6 +757,32 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
                       </>
                     )}
                   </div>
+                  {/* Add manual invoice */}
+                  {form.razonSocial && (
+                    <div style={{ marginTop: 8 }}>
+                      {!showAddInvoice ? (
+                        <button onClick={() => { setShowAddInvoice(true); setNewInvoice({ ...emptyInv, os: form.razonSocial }); }}
+                          style={{ ...baseBtn, fontSize: 11, padding: "5px 12px", background: "#EFF6FF", color: C.blue, border: `1px dashed ${C.blueAccent}` }}>
+                          + Comprobante no encontrado — Cargar manualmente
+                        </button>
+                      ) : (
+                        <div style={{ border: `1px solid ${C.blueAccent}`, borderRadius: 8, padding: 12, background: "#F0F7FF" }}>
+                          <h5 style={{ margin: "0 0 8px", fontSize: 12, color: C.navy }}>Cargar comprobante nuevo</h5>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8 }}>
+                            <div><label style={labelStyle}>Nro Comprobante *</label><input value={newInvoice.id} onChange={e => setNewInvoice(p => ({ ...p, id: e.target.value }))} style={inputStyle} placeholder="FA X 0000-00000000" /></div>
+                            <div><label style={labelStyle}>Obra Social</label><input value={newInvoice.os} readOnly style={{ ...inputStyle, background: C.grayBg }} /></div>
+                            <div><label style={labelStyle}>Saldo *</label><input type="number" value={newInvoice.saldo || ""} onChange={e => setNewInvoice(p => ({ ...p, saldo: parseFloat(e.target.value) || 0, total: parseFloat(e.target.value) || 0 }))} style={inputStyle} placeholder="0.00" /></div>
+                            <div><label style={labelStyle}>Fecha Factura</label><input type="date" value={newInvoice.fecha} onChange={e => setNewInvoice(p => ({ ...p, fecha: e.target.value }))} style={inputStyle} /></div>
+                            <div><label style={labelStyle}>Período</label><input type="month" value={newInvoice.periodo} onChange={e => setNewInvoice(p => ({ ...p, periodo: e.target.value }))} style={inputStyle} /></div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                            <button onClick={() => { setShowAddInvoice(false); setNewInvoice({ ...emptyInv }); }} style={{ ...secondaryBtn, fontSize: 11, padding: "5px 12px" }}>Cancelar</button>
+                            <button onClick={addManualInvoice} style={{ ...primaryBtn, fontSize: 11, padding: "5px 12px" }}>✅ Agregar Comprobante</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </>
             )}
