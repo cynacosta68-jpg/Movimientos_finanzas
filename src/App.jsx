@@ -766,8 +766,6 @@ function IngresoTab({ movements, updateMovements, pendingItems, updatePending, i
    ═══════════════════════════════════════════════════════════════ */
 function LiquidacionTab({ movements, updateMovements, settlements, updateSettlements, isAdmin }) {
   const [statusFilter, setStatusFilter] = useState("");
-  const [showNewForm, setShowNewForm] = useState(false);
-  const [newSet, setNewSet] = useState({ obraSocial: "", facturaId: "", ordenPago: "", fechaEstimada: "", monto: 0 });
   const [downloadFrom, setDownloadFrom] = useState("");
   const [downloadTo, setDownloadTo] = useState("");
 
@@ -775,13 +773,6 @@ function LiquidacionTab({ movements, updateMovements, settlements, updateSettlem
   const assignedIds = settlements.map(s => s.movementId);
   const unassigned = cobranzasOS.filter(c => !assignedIds.includes(c.id));
   const filteredSettlements = statusFilter ? settlements.filter(s => s.status === statusFilter) : settlements;
-
-  const addSettlement = () => {
-    if (!newSet.obraSocial || !newSet.facturaId || !newSet.fechaEstimada) { alert("Complete Obra Social, Factura y Fecha"); return; }
-    updateSettlements([...settlements, { id: uid(), ...newSet, status: "PLANIFICADO", movementId: "", fechaCreacion: new Date().toISOString().slice(0, 10) }]);
-    setNewSet({ obraSocial: "", facturaId: "", ordenPago: "", fechaEstimada: "", monto: 0 });
-    setShowNewForm(false);
-  };
 
   const assignCobranza = (movId, facturaId) => {
     const mov = movements.find(m => m.id === movId);
@@ -800,6 +791,9 @@ function LiquidacionTab({ movements, updateMovements, settlements, updateSettlem
   const reprogramar = (id) => {
     const newDate = prompt("Ingrese nueva fecha (AAAA-MM-DD):");
     if (newDate) updateStatus(id, "PLANIFICADO", newDate);
+  };
+  const deleteSettlement = (id) => {
+    if (window.confirm("¿Quitar esta línea de liquidación?")) updateSettlements(settlements.filter(s => s.id !== id));
   };
 
   const exportFiltered = () => {
@@ -854,38 +848,6 @@ function LiquidacionTab({ movements, updateMovements, settlements, updateSettlem
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
-        <button onClick={() => setShowNewForm(!showNewForm)} style={primaryBtn}>+ Nueva Liquidación</button>
-      </div>
-
-      {showNewForm && (
-        <div style={{ ...cardStyle, borderLeft: `4px solid ${C.blue}` }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-            <div>
-              <label style={labelStyle}>Obra Social</label>
-              <select value={newSet.obraSocial} onChange={e => setNewSet(s => ({ ...s, obraSocial: e.target.value }))} style={selectStyle}>
-                <option value="">Seleccione...</option>
-                {DESTINATARIOS_OS.map(os => <option key={os} value={os}>{os}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Factura</label>
-              <select value={newSet.facturaId} onChange={e => setNewSet(s => ({ ...s, facturaId: e.target.value }))} style={selectStyle}>
-                <option value="">Seleccione...</option>
-                {SAMPLE_INVOICES.filter(i => !newSet.obraSocial || i.os === newSet.obraSocial).filter(i => i.status === "Pendiente").map(inv => <option key={inv.id} value={inv.id}>{inv.id} ({fmt(inv.saldo)})</option>)}
-              </select>
-            </div>
-            <div><label style={labelStyle}>Orden de Pago</label><input value={newSet.ordenPago} onChange={e => setNewSet(s => ({ ...s, ordenPago: e.target.value }))} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Fecha Estimada</label><input type="date" value={newSet.fechaEstimada} onChange={e => setNewSet(s => ({ ...s, fechaEstimada: e.target.value }))} style={inputStyle} /></div>
-            <div><label style={labelStyle}>Monto</label><input type="number" value={newSet.monto} onChange={e => setNewSet(s => ({ ...s, monto: parseFloat(e.target.value) || 0 }))} style={inputStyle} /></div>
-          </div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
-            <button onClick={() => setShowNewForm(false)} style={secondaryBtn}>Cancelar</button>
-            <button onClick={addSettlement} style={primaryBtn}>Guardar</button>
-          </div>
-        </div>
-      )}
-
       <div style={{ ...cardStyle, padding: 0, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
@@ -915,6 +877,7 @@ function LiquidacionTab({ movements, updateMovements, settlements, updateSettlem
                       {s.status === "SIN ASIGNAR" && (
                         <input type="date" onChange={e => { if (e.target.value) updateStatus(s.id, "PLANIFICADO", e.target.value); }} style={{ ...inputStyle, width: 130, padding: "3px 6px", fontSize: 10 }} />
                       )}
+                      <button onClick={() => deleteSettlement(s.id)} style={{ ...baseBtn, fontSize: 10, padding: "3px 8px", background: "#FEE2E2", color: C.red }}>🗑 Quitar</button>
                     </div>
                   </td>
                 </tr>
